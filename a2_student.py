@@ -170,8 +170,12 @@ def generate_samples(P, k, seed):
             are in the range (0, S - 1).
     """
     S, A, _ = P.shape
-    return np.zeros((S, A, k), dtype=int)  # TODO: Implement.
-    # HINT: look for a useful method in the class numpy.random.Generator.
+    rng = np.random.default_rng(seed)
+    samples = np.zeros((S, A, k), dtype=int)
+    for s in range(S):
+        for a in range(A):
+            samples[s, a] = rng.choice(S, size=k, p=P[s, a]) # sample k next states according to discrete distribution P[s, a]
+    return samples
 
 
 def fitmodel(samples):
@@ -186,7 +190,13 @@ def fitmodel(samples):
         Phat (array(S, A, S)): estimate of MDP dynamics P.
     """
     S, A, k = samples.shape
-    return np.zeros((S, A, S))  # TODO: Implement.
+    Phat = np.zeros((S, A, S))
+    for s in range(S):
+        for a in range(A):
+            for next_s in samples[s, a]:
+                Phat[s, a, next_s] += 1
+            Phat[s, a] /= k  # normalize to get probabilities
+    return Phat
 
 
 def analyze_modelbased_error(P, r, gamma, datasets, bellman_iters):
