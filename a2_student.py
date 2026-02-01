@@ -120,7 +120,35 @@ def trajopt(rmaze, horizon, variance, samples, iters, seed, plot_ax=None):
     Returns:
         aseq (array(H, 2)): Algorithm's chosen action sequence a_1:H.
     """
-    return np.zeros((horizon, 2))  # TODO: Implement.
+
+    # for each iteration, sample a random integer from the Generator, then pass it as the seed to trajopt_perturb_actions.
+    # Action dimension is 2. Initialize the action sequence to all-zeros.
+    action_seq = np.zeros((horizon, 2))
+    # initialize a numpy.random.Generator.
+    rng = np.random.default_rng(seed)
+    for it in range(iters):
+        # sample a random integer from the Generator
+        iter_seed = rng.integers(0, 1e9)
+        # 1. Perturb Actions
+        action_seqs = trajopt_perturb_actions(action_seq, variance, rmaze.A_min, rmaze.A_max, samples, iter_seed)
+        # 2. Rollouts
+        states, rewards = trajopt_rollouts(rmaze, action_seqs)
+        # 3. Update Optimal Action Sequence
+        action_seq = trajopt_update_opt(action_seqs, rewards)
+        # Visualization
+        if plot_ax is not None:
+            # We need to know which index was 'best' to draw it in red.
+            # Re-calculating the index here is cheap and keeps the API clean.
+            total_rewards = np.sum(rewards, axis=0)
+            best_idx = np.argmax(total_rewards)
+            
+            # Extract the single best state trajectory (H, 3)
+            best_state_traj = states[:, best_idx, :]
+            
+            # Pass (axis, best_one, all_others)
+            rmaze.draw_trajs(plot_ax, best_state_traj, states)
+
+    return action_seq
 
 
 
