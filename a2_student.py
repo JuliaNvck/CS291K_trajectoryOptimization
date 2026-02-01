@@ -1,4 +1,5 @@
 import numpy as np
+import mdpsolve_student
 
 def trajopt_perturb_actions(action_seq, variance, A_min, A_max, samples, seed):
     """Samples perturbed actions for sampling-based TrajOpt.
@@ -221,8 +222,52 @@ def analyze_modelbased_error(P, r, gamma, datasets, bellman_iters):
     Returns:
         (E_P, E_star, E_V): tuple of 3x array(M), as described in handout.
     """
+    def extract_greedy_policy(Q):
+        S, A = Q.shape
+        pi = np.zeros((S, A))
+        best_actions = np.argmax(Q, axis=1)
+        pi[np.arange(S), best_actions] = 1.0
+        return pi
     M = len(datasets)
-    return (np.zeros(M), np.zeros(M), np.zeros(M))  # TODO: Implement.
+    N = len(datasets[0])  # Number of samples per dataset size
+    E_P = np.zeros(M)
+    E_star = np.zeros(M)
+    E_V = np.zeros(M)
+    # Compute optimal value under true dynamics (same for all m, n)
+    V_star = mdpsolve_student.value_iteration_V(P, r, gamma, bellman_iters)
+    # for each dataset
+    for m in range(M):
+        # Compute all three errors for each (m, n) pair and average over N samples for each m
+        # Accumulate errors across N samples
+        ep_sum = 0.0
+        estar_sum = 0.0
+        ev_sum = 0.0
+        for n in range(N):
+            # Estimate Phat from Dm,n using fitmodel
+            phat = fitmodel(datasets[m][n])
+            # compute policy pi_hat using value iteration: Compute Q-table
+            Q = mdpsolve_student.value_iteration_Q(phat, r, gamma, bellman_iters)
+            # Extract greedy policy: for each state, take the action with highest Q-value
+            pi_hat = extract_greedy_policy(Q)
+            # Find V πhat, the value of πhat under the real dynamics P , using your implementation of Policy Evaluation 
+            V_pihat = mdpsolve_student.policy_evaluation_V(P, r, gamma, pi_hat, bellman_iters)
+            # Find V πhat, Phat , the value of πhat under the incorrect, estimated dynamics Phat
+            # read this directly from the QVI solution 
+            V_pihat_phat = np.max(Q, axis=1)
+            # compute the worst-case estimation error of a single (state, action, next-state) transition probability across the entire MDP.
+            error_P = np.max(np.abs(P - phat))
+            ep_sum += error_P
+            # compute the worst-case suboptimality of πhat across S.
+            error_star = np.max(V_star - V_pihat)
+            estar_sum += error_star
+            # compute how the model Phat overestimates the value of πhat compared to its value under the true dynamics
+            error_value = np.max(V_pihat_phat - V_pihat)
+            ev_sum += error_value
+        # average over N samples
+        E_P[m] = ep_sum / N
+        E_star[m] = estar_sum / N
+        E_V[m] = ev_sum / N
+    return (E_P, E_star, E_V)
 
 
 if __name__ == "__main__":
