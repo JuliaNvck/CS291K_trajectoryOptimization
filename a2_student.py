@@ -78,7 +78,12 @@ def trajopt_update_opt(action_seqs, reward_seqs):
     Returns:
         action_seq_opt (array(H, 2)): new guess of the best action sequence.
     """
-    return action_seqs[:, 0, :]  # TODO: Implement.
+    # Sum rewards over time to get total reward for each action sequence
+    total_rewards = np.sum(reward_seqs, axis=0)  # shape (K,)
+    # Find the index of the action sequence with the highest total reward
+    best_index = np.argmax(total_rewards)
+    # Select the best action sequence
+    return action_seqs[:, best_index, :]
 
 
 def trajopt(rmaze, horizon, variance, samples, iters, seed, plot_ax=None):
