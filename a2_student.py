@@ -270,5 +270,74 @@ def analyze_modelbased_error(P, r, gamma, datasets, bellman_iters):
     return (E_P, E_star, E_V)
 
 
+# if __name__ == "__main__":
+#     main()
+
 if __name__ == "__main__":
-    main()
+    import matplotlib.pyplot as plt
+    # If your MDP functions are in a different file, import them. 
+    # Otherwise, ensure mdp_line, mdp_statepick etc. are available here.
+    # from mdpsolve_student import mdp_line 
+
+    # 1. Setup the Experiment
+    print("Setting up experiment...")
+    S = 10
+    # Create a test MDP (Line world is good for this)
+    # Ensure you have mdp_line available or copy it from your previous code
+    P_true, r_true = mdpsolve_student.mdp_line(S) 
+    gamma = 0.9
+    
+    # Define the range of sample sizes (k) to test
+    # e.g., 1 sample per (s,a), then 2, 5, 10, ... up to 500
+    k_values = [1, 2, 5, 10, 20, 50, 100, 200, 500]
+    
+    # Define how many random trials (N) to run for each k to get a smooth average
+    n_trials = 20
+    
+    # 2. Generate the Datasets
+    # structure: datasets[m][n] is the dataset for k=k_values[m] and seed=n
+    datasets = []
+    
+    print(f"Generating datasets for k values: {k_values} with {n_trials} trials each...")
+    
+    rng = np.random.default_rng(0) # Master seed
+    
+    for k in k_values:
+        datasets_for_k = []
+        for n in range(n_trials):
+            # Generate a unique seed for this specific trial
+            trial_seed = rng.integers(0, 1000000)
+            
+            # Generate samples using your function
+            # P_true shape is (S, A, S) from mdp_line
+            data = generate_samples(P_true, k, trial_seed)
+            datasets_for_k.append(data)
+        datasets.append(datasets_for_k)
+
+    # 3. Run Analysis
+    print("Running analysis (this might take a moment)...")
+    # Use a sufficient number of iterations for VI/PE to converge
+    bellman_iters = 100 
+    
+    # Call your analysis function
+    E_P, E_star, E_V = analyze_modelbased_error(P_true, r_true, gamma, datasets, bellman_iters)
+
+    # 4. Plot Results
+    print("Plotting results...")
+    plt.figure(figsize=(10, 6))
+    
+    # Plot all three errors on a log-log scale because error usually decays polynomially (1/sqrt(k))
+    plt.loglog(k_values, E_P, label=r"Model Error $E^P$", marker='o')
+    plt.loglog(k_values, E_star, label=r"Suboptimality $E^*$", marker='s')
+    plt.loglog(k_values, E_V, label=r"Value Error $E^V$", marker='^')
+    
+    plt.xlabel("Number of Samples $k$ per (s, a) pair")
+    plt.ylabel("Error")
+    plt.title("Model-Based RL Error vs. Sample Size (Log-Log Plot)")
+    plt.grid(True, which="both", ls="-", alpha=0.5)
+    plt.legend()
+    
+    output_filename = "model_based_error_analysis.png"
+    plt.savefig(output_filename)
+    print(f"Done! Plot saved to {output_filename}")
+    plt.show()
