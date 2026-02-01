@@ -52,8 +52,21 @@ def trajopt_rollouts(rmaze, action_seqs):
         rewards (array (H, K)): Reward trajectories.
     """
     H, K, _ = action_seqs.shape
-    return np.zeros((H, K, 3)), np.zeros((H, K))  # TODO: Implement.
-
+    states = np.zeros((H, K, 3))
+    rewards = np.zeros((H, K))
+    # Set the initial state for all K parallel rollouts
+    # rmaze.start is (x, y, theta) - need (K, 3) array
+    curr_states = np.tile(rmaze.start, (K, 1))
+    for t in range(H):
+        states[t] = curr_states
+        # Get the actions for this timestep for all K samples
+        curr_actions = action_seqs[t]  # shape (K, 2)
+        # compute trajectory returns
+        rewards[t] = rmaze.reward(curr_states, curr_actions)
+        # next states: Roll-out state trajectories.
+        curr_states = rmaze.step(curr_states, curr_actions)
+         
+    return states, rewards
 
 def trajopt_update_opt(action_seqs, reward_seqs):
     """Picks the best action sequence from the perturbed set.
